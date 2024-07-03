@@ -15,8 +15,8 @@ class GlobalExceptionHandler {
         val errorResponse = ErrorResponse(
             LocalDateTime.now(),
             HttpStatus.BAD_REQUEST.value(),
-            "an error occurred",
-            e.message.toString()
+            e.message.toString(),
+            "/products"
         )
 
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse)
