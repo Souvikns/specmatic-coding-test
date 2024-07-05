@@ -17,8 +17,7 @@ class Products(private val productService: ProductService) {
     }
 
     @PostMapping("/products")
-    fun addProducts(@Valid @RequestBody request: AddProductRequest ): ResponseEntity<Any>{
-        this.checkProductType(request.type)
+    fun addProducts(@Valid @RequestBody(required = false) request: AddProductRequest ): ResponseEntity<Any>{
         val id = productService.addProduct(request)
         return ResponseEntity(AddProductResponse(id), HttpStatus.CREATED)
     }
