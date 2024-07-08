@@ -1,10 +1,10 @@
 package com.store.controllers
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import io.swagger.parser.OpenAPIParser
-import io.swagger.v3.core.util.Json
 import io.swagger.v3.oas.models.OpenAPI
-import io.swagger.v3.oas.models.media.ObjectSchema
 import jakarta.servlet.ReadListener
 import jakarta.servlet.ServletInputStream
 import jakarta.servlet.http.HttpServletRequest
@@ -13,12 +13,12 @@ import jakarta.servlet.http.HttpServletResponse
 import org.everit.json.schema.Schema
 import org.everit.json.schema.loader.SchemaLoader
 import org.json.JSONObject
+import org.json.JSONTokener
 import org.springframework.stereotype.Component
 import org.springframework.web.servlet.HandlerInterceptor
 import java.io.BufferedReader
 import java.io.ByteArrayInputStream
 import java.io.InputStreamReader
-import java.util.*
 
 
 @Component
@@ -34,15 +34,36 @@ class RequestInterceptor : HandlerInterceptor {
 
         request.setAttribute("cachedBodyHttpServletRequest", wrappedRequest)
         val openapi = loadOpenApiSpec()
-        val schema = openapi.components.schemas["ProductDetails"].toString()
-        val sd = ObjectMapper().writeValueAsString(openapi.components.schemas["ProductDetails"])
-        println(sd)
-        val jsonSchema = SchemaLoader.builder().schemaJson(sd.trim()).draftV7Support().build().load().build()
+        val schema = openapi.components?.schemas?.get("ProductDetails")
+        val mapper = jacksonObjectMapper().registerKotlinModule()
+        val schemaJsonString = mapper.writeValueAsString(schema)
+        println(JSONTokener(schemaJsonString))
+        var sd = ObjectMapper().writeValueAsString(openapi.components.schemas["ProductDetails"])
+        val jsonObject = JSONTokener(schemaJsonString)
+        val jsonSchema = SchemaLoader.builder().schemaJson(JSONObject(jsonObject)).draftV6Support().build().load().build()
 
         return validateAgainstSchema(body, jsonSchema)
 
 
     }
+
+//    private fun convertSchemaToJSON(schema: Schema<*>): JSONObject {
+//        val mapper = jacksonObjectMapper().registerKotlinModule()
+//        val schemaJsonString = mapper.writeValueAsString(schema)
+//        return JSONObject(JSONTokener(schemaJsonString))
+//    }
+
+    fun sanitizeJsonObject(jsonObject: JSONObject): JSONObject {
+        val keys = jsonObject.keys()
+        while (keys.hasNext()) {
+            val key = keys.next()
+            if (jsonObject.isNull(key)) {
+                jsonObject.remove(key)
+            }
+        }
+        return jsonObject
+    }
+
 
     private fun loadOpenApiSpec(): OpenAPI {
         val parser = OpenAPIParser()
@@ -62,6 +83,7 @@ class RequestInterceptor : HandlerInterceptor {
             schema.validate(json)
             true
         } catch (e: Exception) {
+            println(e)
             false
         }
     }
